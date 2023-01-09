@@ -32,11 +32,11 @@ impl Ext {
 #[derive(Debug)]
 pub struct Element {
     /// The extension, or type, of the input file.
-    pub(crate) ext: Ext,
+    pub ext: Ext,
     /// The path relative to the base input directory.
-    pub(crate) path: PathBuf,
+    pub path: PathBuf,
     /// The new path for the output file.  Relative to the output directory.
-    pub(crate) output_path: PathBuf,
+    pub output_path: PathBuf,
 }
 
 /// Computes the output path for a given input path.
@@ -67,7 +67,7 @@ impl Element {
 
 /// An index of all the input files, and some metadata about them.
 #[derive(Debug)]
-pub(crate) struct Index {
+pub struct Index {
     /// All the elements in the input.  Using Rc because we're going to reference these elements
     /// from a HashMap.
     elements: Vec<Rc<Element>>,
@@ -83,7 +83,7 @@ fn should_process(path: &Path) -> bool {
 impl Index {
 
     /// Index the given directory.
-    pub(crate) fn from_dir(dir: &Path) -> Result<Self> {
+    pub fn from_dir(dir: &Path) -> Result<Self> {
         let mut elements: Vec<Rc<Element>> = Vec::new();
         let mut by_path : HashMap<PathBuf, Rc<Element>> = HashMap::new();
         for entry in WalkDir::new(dir) {
@@ -102,15 +102,15 @@ impl Index {
         Ok( Self { elements, by_path, })
     }
 
-    pub(crate) fn find_by_path(&self, path: &Path) -> Option<&Rc<Element>> {
+    pub fn find_by_path(&self, path: &Path) -> Option<&Rc<Element>> {
         self.by_path.get(path)
     }
 
-    pub(crate) fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.elements.len()
     }
 
-    pub(crate) fn iter(&self) -> Iter<'_, Rc<Element>> {
+    pub fn iter(&self) -> Iter<'_, Rc<Element>> {
         self.elements.iter()
     }
 }

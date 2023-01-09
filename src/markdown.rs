@@ -58,7 +58,7 @@ fn process_line(line: &str, index: &Index) -> Result<String> {
     Ok(new_line)
 }
 
-pub(crate) fn process_markdown(old_path: &Path, new_path: &Path,
+pub fn process_markdown(old_path: &Path, new_path: &Path,
                         path_map: &Index) -> Result<()> {
     process_lines(old_path, new_path,
                   |line| process_line(line, path_map))?;
