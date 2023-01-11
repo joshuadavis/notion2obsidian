@@ -71,8 +71,10 @@ pub struct Index {
     /// All the elements in the input.  Using Rc because we're going to reference these elements
     /// from a HashMap.
     elements: Vec<Rc<Element>>,
-    /// A map of the elements, by their "path" (relative to the base directory).
+    /// A map of the elements, by their original path (relative to the base directory).
     by_path: HashMap<PathBuf, Rc<Element>>,
+    /// A map of the elements, by their output path (relative to the output directory).
+    by_output_path: HashMap<PathBuf, Rc<Element>>,
 }
 
 /// Determines which input paths should be indexed/processed.
@@ -86,6 +88,7 @@ impl Index {
     pub fn from_dir(dir: &Path) -> Result<Self> {
         let mut elements: Vec<Rc<Element>> = Vec::new();
         let mut by_path : HashMap<PathBuf, Rc<Element>> = HashMap::new();
+        let mut by_output_path : HashMap<PathBuf, Rc<Element>> = HashMap::new();
         for entry in WalkDir::new(dir) {
             let entry = entry?; // unwrap the Result, hang on to it as a local var to give it a lifetime.
             let path = entry.path();
@@ -95,15 +98,22 @@ impl Index {
                     Element::new(path, dir)?);
                 // Okay, so now we have the Rc.  Clone it first, to get the reference into the map.
                 by_path.insert(elem_rc.path.clone(), elem_rc.clone());
+                by_output_path.insert(elem_rc.output_path.clone(), elem_rc.clone());
                 // Then consume it (move it) into the vector.
                 elements.push(elem_rc);
             }
         }
-        Ok( Self { elements, by_path, })
+        Ok( Self { elements, by_path, by_output_path })
     }
 
+    /// Find a file given it's original path.
     pub fn find_by_path(&self, path: &Path) -> Option<&Rc<Element>> {
         self.by_path.get(path)
+    }
+
+    /// Find a file given it's output path.
+    pub fn find_by_output_path(&self, path: &Path) -> Option<&Rc<Element>> {
+        self.by_output_path.get(path)
     }
 
     pub fn len(&self) -> usize {

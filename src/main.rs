@@ -73,7 +73,7 @@ fn main() -> Result<()> {
         match elem.ext {
             Ext::Table => {
                 // Convert CSV files to markdown table?
-                table::convert_csv_to_markdown(&input_path, &output_path)?;
+                table::convert_csv_to_markdown(new_path, &input_path, &output_path, &index)?;
             }
             Ext::Markdown => {
                 // Process markdown.
