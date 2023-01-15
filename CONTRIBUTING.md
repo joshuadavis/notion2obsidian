@@ -17,6 +17,14 @@ To build and test the project, use [Cargo](https://doc.rust-lang.org/cargo/) in 
 cargo build
 ```
 
+## Testing
+
+To test with "real" data, you can make a Notion export, then copy it to the root directory of the git clone.
+
+If you name it `Export-blah.zip`, then the gitignore rules will ignore it.
+
+This way you can run `notion2obsidian` from the root directory of the clone and all the directories it creates will be ignored by git.
+
 # Windows
 
 Some special considerations for building this project on Windows systems:
