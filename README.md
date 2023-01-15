@@ -35,3 +35,6 @@ Details about the conversion that `notion2obsidian` does...
 
 ... to be written
 
+# Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
