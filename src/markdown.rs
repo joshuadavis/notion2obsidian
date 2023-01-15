@@ -72,9 +72,10 @@ mod tests {
 
     #[test]
     fn test_create_path_map() {
-        let dir = Path::new("test-data/Documentation c5b82e1ba6e94f87bb3f537f639378b4");
+        // A simple folder with three markdown files in it.
+        let dir = Path::new("test-data/folder1");
         let path_map = Index::from_dir(dir).unwrap();
-        assert_eq!(path_map.len(), 48);
+        assert_eq!(path_map.len(),  3);
     }
 
     #[test]
