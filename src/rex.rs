@@ -1,27 +1,37 @@
-
 use anyhow::{anyhow, Result};
-use std::ffi::OsStr;
 use lazy_static::lazy_static;
 use regex::Regex;
 use crate::path_helper;
 
-pub fn replace_hex(s: &OsStr) -> Result<String> {
+pub fn replace_hex(s: &str) -> Result<String> {
     lazy_static! {
         static ref RE_FILENAME: Regex = Regex::new(
-            r"(.*)( +[0-9a-f]+)(\..*)")
-        .unwrap();
+            r"(.*)( +[0-9a-fA-F]+)(\..*)").unwrap();
         static ref RE_DIR: Regex = Regex::new(
-            r"(.*)( +[0-9a-f]+)")
-        .unwrap();
+            r"(.*)( +[0-9a-fA-F]+)").unwrap();
     }
-    let text = path_helper::osstr_to_str(s)?;
-    if text.contains(".") {
-        Ok(RE_FILENAME.replace(path_helper::osstr_to_str(s)?, "$1$3").to_string())
+    // Replace hex strings in filenames and directory names.
+    let rv = if s.contains(".") {
+        RE_FILENAME.replace(s, "$1$3").to_string()
     } else {
-        Ok(RE_DIR.replace(path_helper::osstr_to_str(s)?, "$1").to_string())
-    }
+        RE_DIR.replace(s, "$1").to_string()
+    };
+    // Trim off trailing spaces, and return.  Windows doesn't like trailing spaces.
+    Ok(rv.trim().to_string())
 }
 
-pub fn get_capture_value<'a>(capture: &'a regex::Captures, i:usize) -> Result<&'a str> {
+pub fn get_capture_value<'a>(capture: &'a regex::Captures, i: usize) -> Result<&'a str> {
     Ok(capture.get(i).ok_or(anyhow!("Invalid  capture {}!", i))?.as_str())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_replace_hex() {
+        assert_eq!(replace_hex("foo 1234EEABC.txt").unwrap(), "foo.txt");
+        assert_eq!(replace_hex("foo 1234ffd3eeaA12").unwrap(), "foo");
+        assert_eq!(replace_hex("foo 1234FFD12  ").unwrap(), "foo");
+    }
 }
