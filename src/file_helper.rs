@@ -1,4 +1,4 @@
-use std::fs::{create_dir_all, File, remove_file};
+use std::fs::{create_dir_all, File};
 use anyhow::{Context, Result};
 use std::path::Path;
 use std::io::{BufRead, BufReader, BufWriter, Write};
