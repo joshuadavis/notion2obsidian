@@ -19,13 +19,6 @@ pub fn create_if_needed(p: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn remove_file_if_exists(path: &Path) -> Result<()> {
-    if path.exists() {
-        remove_file(path)?;
-    }
-    Ok(())
-}
-
 /// Open the specified path for output, creating the parent directory if needed.
 pub fn open_output_file(output_path: &Path) -> Result<BufWriter<File>> {
     // Open the output file, create parent directory first.
@@ -35,11 +28,12 @@ pub fn open_output_file(output_path: &Path) -> Result<BufWriter<File>> {
     Ok(writer)
 }
 
-pub fn process_lines<F>(input_path: &Path, output_path: &Path,mut line_processor: F) -> Result<()>
+pub fn process_lines<F>(input_path: &Path, output_path: &Path, mut line_processor: F) -> Result<()>
     where F: FnMut(&str) -> Result<String> {
 
     // Open the input file.
-    let input = File::open(input_path)?;
+    let input = File::open(input_path).with_context(
+        || { format!("Could not open {} for input", input_path.display()) })?;
     let reader = BufReader::new(input);
 
     let mut writer = open_output_file(output_path)?;
@@ -55,12 +49,13 @@ pub fn process_lines<F>(input_path: &Path, output_path: &Path,mut line_processor
 
 /// Copies the file, log a warning if there was a problem.
 pub fn copy_file(input_path: &Path, output_path: &Path) -> u64 {
-    let r = std::fs::copy(input_path,output_path);
+    let r = std::fs::copy(input_path, output_path);
     match r
     {
         Ok(n) => n,
         Err(e) => {
-            warn!("Error copying [{}] to [{}]: {}", input_path.display(), output_path.display(), e);
+            warn!("Error copying [{}] to [{}]: {}",
+                input_path.display(), output_path.display(), e);
             0   // We didn't copy anything.
         }
     }
@@ -80,7 +75,7 @@ mod test {
 
         let mut count = 0;
         let result = process_lines(input, output, |line| {
-            count = count+1;
+            count = count + 1;
             Ok(String::from(line))
         });
         assert!(result.is_ok());

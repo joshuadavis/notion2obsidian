@@ -1,18 +1,19 @@
 use std::collections::HashMap;
-use anyhow::Result;
+use anyhow::{Result};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::slice::Iter;
 use log::{debug};
 use walkdir::WalkDir;
-use crate::path_helper::component_to_string;
+use crate::path_helper::{component_to_string};
+
 
 /// Represents the file extension (file type) for a particular entry.
 #[derive(Eq, PartialEq, Debug)]
 pub enum Ext {
     Markdown,
     Table,
-    Other
+    Other,
 }
 
 fn as_str(osstr: Option<&std::ffi::OsStr>) -> &str {
@@ -35,9 +36,9 @@ pub struct Element {
     /// The extension, or type, of the input file.
     pub ext: Ext,
     /// The path relative to the base input directory.
-    pub path: PathBuf,
+    pub old_path: PathBuf,
     /// The new path for the output file.  Relative to the output directory.
-    pub output_path: PathBuf,
+    pub new_path: PathBuf,
 }
 
 /// Computes the output path for a given input path.
@@ -60,8 +61,8 @@ impl Element {
         let path = input_path.strip_prefix(base_dir)?;
         Ok(Self {
             ext: Ext::from_path(input_path),
-            path: path.to_path_buf(),
-            output_path: compute_new_path(path)?,
+            old_path: path.to_path_buf(),
+            new_path: compute_new_path(path)?,
         })
     }
 }
@@ -84,12 +85,11 @@ fn should_process(path: &Path) -> bool {
 }
 
 impl Index {
-
     /// Index the given directory.
     pub fn from_dir(dir: &Path) -> Result<Self> {
         let mut elements: Vec<Rc<Element>> = Vec::new();
-        let mut by_path : HashMap<PathBuf, Rc<Element>> = HashMap::new();
-        let mut by_output_path : HashMap<PathBuf, Rc<Element>> = HashMap::new();
+        let mut by_path: HashMap<PathBuf, Rc<Element>> = HashMap::new();
+        let mut by_output_path: HashMap<PathBuf, Rc<Element>> = HashMap::new();
         for entry in WalkDir::new(dir) {
             let entry = entry?; // unwrap the Result, hang on to it as a local var to give it a lifetime.
             let path = entry.path();
@@ -98,18 +98,30 @@ impl Index {
                 let elem_rc = Rc::new(
                     Element::new(path, dir)?);
                 // Okay, so now we have the Rc.  Clone it first, to get the reference into the map.
-                by_path.insert(elem_rc.path.clone(), elem_rc.clone());
-                by_output_path.insert(elem_rc.output_path.clone(), elem_rc.clone());
+                by_path.insert(elem_rc.old_path.clone(), elem_rc.clone());
+                by_output_path.insert(elem_rc.new_path.clone(), elem_rc.clone());
                 // Then consume it (move it) into the vector.
                 elements.push(elem_rc);
             }
         }
-        Ok( Self { elements, by_path, by_output_path })
+        Ok(Self { elements, by_path, by_output_path })
     }
 
     /// Find a file given it's original path.
     pub fn find_by_path(&self, path: &Path) -> Option<&Rc<Element>> {
         self.by_path.get(path)
+    }
+
+    pub fn find_by_path_or_relative_path(&self, path: &Path, base_dir: &Path) -> Option<&Rc<Element>> {
+        match self.find_by_path(path) {
+            Some(elem) => {
+                Some(elem)
+            }
+            None => {
+                let relative = base_dir.join(path);
+                self.find_by_path(&relative)
+            }
+        }
     }
 
     /// Find a file given it's output path.
@@ -126,9 +138,59 @@ impl Index {
     }
 }
 
+/// Paths, used while processing a file.
+#[derive(Debug)]
+pub struct Paths {
+    /// The relative path to the input file.
+    pub old_path: PathBuf,
+
+    /// The relative path to the output file.
+    pub new_path: PathBuf,
+
+    /// The base input directory.
+    pub input_dir: PathBuf,
+
+    /// The base output directory.
+    pub output_dir: PathBuf,
+}
+
+impl Paths {
+    /// Create a new Paths object from an index Element
+    pub fn from_elem(elem: &Rc<Element>, input_dir: &Path, output_dir: &Path) -> Self {
+        Self {
+            old_path: elem.old_path.clone(),
+            new_path: elem.new_path.clone(),
+            input_dir: input_dir.to_path_buf(),
+            output_dir: output_dir.to_path_buf(),
+        }
+    }
+
+    /// Returns the full input path for the input file.
+    pub fn input_path(&self) -> PathBuf {
+        self.input_dir.join(self.old_path.as_path())
+    }
+
+    /// Returns the full output path for the output file.
+    pub fn output_path(&self) -> PathBuf {
+        self.output_dir.join(self.new_path.as_path())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_paths() {
+        let elem = Rc::new(Element {
+            ext: Ext::Markdown,
+            old_path: PathBuf::from("foo/bar.md"),
+            new_path: PathBuf::from("foo/bar.md"),
+        });
+        let paths = Paths::from_elem(&elem, Path::new("input"), Path::new("output"));
+        assert_eq!(paths.input_path(), Path::new("input/foo/bar.md"));
+        assert_eq!(paths.output_path(), Path::new("output/foo/bar.md"));
+    }
 
     #[test]
     fn test_compute_new_path() {

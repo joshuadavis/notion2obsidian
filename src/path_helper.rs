@@ -40,6 +40,11 @@ pub fn is_zip_file(input_path: &Path) -> Result<bool> {
     Ok(input_path.is_file() && get_extension(input_path)?.to_lowercase() == "zip")
 }
 
+/// Gets the parent, as a Result so you can use ?.
+pub fn get_parent(path: &Path) -> Result<&Path> {
+    path.parent().ok_or(anyhow!("No parent!"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

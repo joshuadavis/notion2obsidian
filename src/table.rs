@@ -4,6 +4,7 @@ use std::io::{BufWriter, Write};
 use anyhow::Result;
 
 use crate::file_helper::{open_output_file};
+use crate::index;
 use crate::index::Index;
 use crate::path_helper::path_to_string;
 
@@ -14,7 +15,7 @@ pub fn compute_link_addr(path: &Path, name: &str, index: &Index) -> Option<PathB
     path.set_extension("md");
     let maybe_elem = index.find_by_output_path(&path);
     if let Some(elem) = maybe_elem {
-        Some(elem.output_path.clone())
+        Some(elem.new_path.clone())
     } else {
         None
     }
@@ -40,9 +41,14 @@ fn write_headers(reader : &mut csv::Reader<File>, writer: &mut BufWriter<File>) 
     Ok(link_first_column)
 }
 
-pub fn convert_csv_to_markdown(new_path: &Path,input: &Path, output: &Path, index: &Index) -> anyhow::Result<()> {
-    let mut reader = csv::Reader::from_path(input)?;
-    let mut writer = open_output_file(output)?;
+pub fn convert_csv_to_markdown(paths: &index::Paths, index: &Index) -> anyhow::Result<()> {
+
+    let input = paths.input_path();
+    let output = paths.output_path();
+    let new_path = &paths.new_path;
+
+    let mut reader = csv::Reader::from_path(&input)?;
+    let mut writer = open_output_file(&output)?;
     let mut link_first_column = false;
 
     // First, write the headers.

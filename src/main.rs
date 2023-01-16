@@ -7,7 +7,7 @@ use env_logger::Builder;
 use log::{debug, info};
 
 use crate::file_helper::{create_if_needed, create_parent_if_needed};
-use crate::index::Ext;
+use crate::index::{Ext, Paths};
 
 mod path_helper;
 mod extract_zip;
@@ -31,18 +31,18 @@ fn main() -> Result<()> {
 
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        return Err(anyhow!("Not enough arguments!"))
+        return Err(anyhow!("Not enough arguments!"));
     }
     let input_str = &args[1];
     let input_path = Path::new(input_str);
     if !input_path.exists() {
-        return Err(anyhow!("input {} does not exist!", input_str))
+        return Err(anyhow!("input {} does not exist!", input_str));
     }
 
     info!("Input: {}", input_path.display());
 
     // If the input file ends with ".zip", then extract it to a directory.
-    let dir : PathBuf = if path_helper::is_zip_file(input_path)? {
+    let dir: PathBuf = if path_helper::is_zip_file(input_path)? {
         info!("Unzipping {}...", input_path.display());
         extract_zip::extract_zip(input_path)?
     } else {
@@ -64,24 +64,22 @@ fn main() -> Result<()> {
 
     // Walk through the map and copy the files.
     for (i, elem) in index.iter().enumerate() {
-        let old_path = elem.path.as_path();
-        let new_path = elem.output_path.as_path();
-        debug!("[{}] {} -> {}", i, old_path.display(), new_path.display());
-        let output_path = output_dir.join(new_path);
-        let input_path = dir.join(old_path);
-        create_parent_if_needed(&output_path)?;
+        let paths = Paths::from_elem(elem, &dir, &output_dir);
+        debug!("[{}] {:?}", i, paths);
+        create_parent_if_needed(paths.output_path().as_path())?;
         match elem.ext {
             Ext::Table => {
                 // Convert CSV files to markdown table?
-                table::convert_csv_to_markdown(new_path, &input_path, &output_path, &index)?;
+                table::convert_csv_to_markdown(&paths, &index)?;
             }
             Ext::Markdown => {
                 // Process markdown.
-                markdown::process_markdown(&input_path, &output_path, &index)?;
+                markdown::process_markdown(&paths, &index)?;
             }
             _ => { // Otherwise, just copy.
                 // Helper function that gives some error context if the copy fails.
-                file_helper::copy_file(&input_path, &output_path);
+                file_helper::copy_file(paths.input_path().as_path(),
+                                       paths.output_path().as_path());
             }
         }
     }
