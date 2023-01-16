@@ -3,8 +3,9 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::slice::Iter;
-use log::info;
+use log::{debug};
 use walkdir::WalkDir;
+use crate::path_helper::component_to_string;
 
 /// Represents the file extension (file type) for a particular entry.
 #[derive(Eq, PartialEq, Debug)]
@@ -44,7 +45,7 @@ fn compute_new_path(path: &Path) -> Result<PathBuf> {
     let mut buf = PathBuf::new();
     // Assume that the given path has been made relative to the base directory already.
     for component in path.components() {
-        let new = crate::rex::replace_hex(component.as_os_str())?;
+        let new = crate::rex::replace_hex(component_to_string(&component)?.as_str())?;
         buf.push(Path::new(&new));
     }
     // Replace the extension for some files.
@@ -93,7 +94,7 @@ impl Index {
             let entry = entry?; // unwrap the Result, hang on to it as a local var to give it a lifetime.
             let path = entry.path();
             if should_process(path) {
-                info!("Processing {}", path.display());
+                debug!("Processing {}", path.display());
                 let elem_rc = Rc::new(
                     Element::new(path, dir)?);
                 // Okay, so now we have the Rc.  Clone it first, to get the reference into the map.
