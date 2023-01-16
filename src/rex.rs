@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
 use regex::Regex;
-use crate::path_helper;
 
 pub fn replace_hex(s: &str) -> Result<String> {
     lazy_static! {

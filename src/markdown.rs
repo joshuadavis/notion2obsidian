@@ -15,23 +15,36 @@ fn get_link_value(found: &Captures, i: usize) -> Result<String> {
     Ok(String::from(decoded.as_ref()))
 }
 
+fn link_is_external(addr: &str) -> bool {
+    addr.starts_with("http://") || addr.starts_with("https://")
+}
+
 fn get_new_link(is_image: bool, link_text: &str, link_addr: &Path, index: &Index) -> Result<String> {
-    let maybe_elem = index.find_by_path(link_addr);
-    if let Some(elem) = maybe_elem {
-        let new_path = elem.output_path.as_path();
-        // If we found the address in the map, then use that with the 'internal link' syntax.
-        if is_image {
-            Ok(format!("![[{}]]", path_to_string(new_path)?))
-        } else {
-            Ok(format!("[[{}|{}]]", path_to_string(new_path)?, link_text))
+    let link_addr_string = path_to_string(link_addr)?;
+    match index.find_by_path(link_addr) {
+        Some(elem) => {
+            let new_path = path_to_string(elem.output_path.as_path())?;
+            // If we found the address in the map, then use that with the 'internal link' syntax.
+            if is_image {
+                Ok(format!("![[{}]]", new_path))
+            } else {
+                Ok(format!("[[{}|{}]]", new_path, link_text))
+            }
         }
-    } else {
-        if link_text.is_empty()  {
-            // The link text is empty, so just use the link address.
-            Ok(path_to_string(link_addr)?)
-        } else {
-            // Otherwise, just use the original address, and use the 'external link' syntax.
-            Ok(format!("[{}]({})",  link_text, path_to_string(link_addr)?))
+        None => {
+            if link_is_external(link_addr_string.as_str()) {
+                // If the link is external, then use the 'external link' syntax.
+                // If there is no link text, then just use the link address.
+                if link_text.is_empty() {
+                    Ok(link_addr_string)
+                } else {
+                    Ok(format!("[{}]({})", link_text, link_addr_string))
+                }
+            } else {
+                // Otherwise,this is some kind of non-external link that isn't in the index.
+                info!("Link not found: {}, assuming external link", path_to_string(link_addr)?);
+                Ok(format!("[{}]({})", link_text, path_to_string(link_addr)?))
+            }
         }
     }
 }

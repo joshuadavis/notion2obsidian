@@ -1,10 +1,10 @@
-use std::{env, fs};
+use std::{env};
 use std::fs::remove_dir_all;
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use env_logger::Builder;
-use log::{debug, info, warn};
+use log::{debug, info};
 
 use crate::file_helper::{create_if_needed, create_parent_if_needed};
 use crate::index::Ext;
