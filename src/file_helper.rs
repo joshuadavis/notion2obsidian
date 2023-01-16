@@ -1,8 +1,8 @@
 use std::fs::{create_dir_all, File, remove_file};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::path::Path;
 use std::io::{BufRead, BufReader, BufWriter, Write};
-use log::info;
+use log::{debug, warn};
 
 pub fn create_parent_if_needed(outpath: &Path) -> Result<()> {
     if let Some(p) = outpath.parent() {
@@ -13,8 +13,8 @@ pub fn create_parent_if_needed(outpath: &Path) -> Result<()> {
 
 pub fn create_if_needed(p: &Path) -> Result<()> {
     if !p.exists() {
-        info!("Creating directory {}", p.display());
-        create_dir_all(p)?;
+        debug!("Creating directory {}", p.display());
+        create_dir_all(p).with_context(|| { format!("Unable to create directory {}", p.display()) })?;
     }
     Ok(())
 }
@@ -51,6 +51,19 @@ pub fn process_lines<F>(input_path: &Path, output_path: &Path,mut line_processor
     }
     writer.flush()?;
     Ok(())
+}
+
+/// Copies the file, log a warning if there was a problem.
+pub fn copy_file(input_path: &Path, output_path: &Path) -> u64 {
+    let r = std::fs::copy(input_path,output_path);
+    match r
+    {
+        Ok(n) => n,
+        Err(e) => {
+            warn!("Error copying [{}] to [{}]: {}", input_path.display(), output_path.display(), e);
+            0   // We didn't copy anything.
+        }
+    }
 }
 
 #[cfg(test)]

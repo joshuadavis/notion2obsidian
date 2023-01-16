@@ -2,9 +2,9 @@ use std::{env, fs};
 use std::fs::remove_dir_all;
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use env_logger::Builder;
-use log::{info};
+use log::{debug, info, warn};
 
 use crate::file_helper::{create_if_needed, create_parent_if_needed};
 use crate::index::Ext;
@@ -66,7 +66,7 @@ fn main() -> Result<()> {
     for (i, elem) in index.iter().enumerate() {
         let old_path = elem.path.as_path();
         let new_path = elem.output_path.as_path();
-        info!("[{}] Converting {} to {}", i, old_path.display(), new_path.display());
+        debug!("[{}] {} -> {}", i, old_path.display(), new_path.display());
         let output_path = output_dir.join(new_path);
         let input_path = dir.join(old_path);
         create_parent_if_needed(&output_path)?;
@@ -80,7 +80,8 @@ fn main() -> Result<()> {
                 markdown::process_markdown(&input_path, &output_path, &index)?;
             }
             _ => { // Otherwise, just copy.
-                fs::copy(&input_path, &output_path)?;
+                // Helper function that gives some error context if the copy fails.
+                file_helper::copy_file(&input_path, &output_path);
             }
         }
     }
