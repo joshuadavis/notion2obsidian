@@ -42,7 +42,7 @@ fn main() -> Result<()> {
     info!("Input: {}", input_path.display());
 
     // If the input file ends with ".zip", then extract it to a directory.
-    let dir: PathBuf = if path_helper::is_zip_file(input_path)? {
+    let dir: PathBuf = if input_path.is_file() && path_helper::is_zip_file(input_path)? {
         info!("Unzipping {}...", input_path.display());
         extract_zip::extract_zip(input_path)?
     } else {

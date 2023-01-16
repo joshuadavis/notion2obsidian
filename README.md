@@ -22,18 +22,21 @@ Unzips the notion export file, if the input argument ends in '.zip'
 * Internal links also need to be in Obsidian Internal Link format: `[[destination|link text]]`
 * Internal links to non-markdown files (e.g. images) are decoded (they're url-encoded in the Notion export).
 * External links stay the same: `[link text](https://example.com)`
+* Log a warning when links could not be converted.
+* Handle relative internal links - these can just be converted into absolute internal links.
 
 ## Transform CSV Files Into Tables
 
 * Notion exports "database" pages as CSV files.   These are translated into markdown files with a markdown table in them.
+* Detect "link tables" and link the names to the corresponding notes.
+
+## Other Transformations
+
+* Remove first heading if it's the same as the page name.
 
 ## Work in Progress
 
-* Log a warning when links could not be converted.
-* Handle relative internal links - these can just be converted into absolute internal links.
-* Detect "link tables" and link the names to the corresponding notes.
 * Translate `Tags: foo, bar, baz` into Obsidian tags.
-* Remove first heading if it's the same as the page name.
 
 # Installation
 

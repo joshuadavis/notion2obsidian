@@ -36,8 +36,14 @@ pub fn get_extension(path: &Path) -> Result<String> {
     osstr_to_string(path.extension())
 }
 
+/// Gets just the file name part, without the extension.
+pub fn get_file_stem(path: &Path) -> Result<String> {
+    osstr_to_string(path.file_stem())
+}
+
+/// Returns Ok(true) if the file is a zip file.
 pub fn is_zip_file(input_path: &Path) -> Result<bool> {
-    Ok(input_path.is_file() && get_extension(input_path)?.to_lowercase() == "zip")
+    Ok(get_extension(input_path)?.to_lowercase() == "zip")
 }
 
 /// Gets the parent, as a Result so you can use ?.
@@ -82,9 +88,16 @@ mod tests {
     }
 
     #[test]
+    fn test_get_file_stem() {
+        let path = Path::new("foo/bar/test.tXt");
+        assert_eq!(get_file_stem(&path).unwrap(), "test");
+    }
+
+    #[test]
     fn test_is_zip_file() {
         let path = Path::new("test.zip");
-        assert!(is_zip_file(&path).unwrap());
+        let result = is_zip_file(&path);
+        assert!(result.unwrap());
     }
 
 }
