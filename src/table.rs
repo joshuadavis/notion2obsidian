@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::io::{BufWriter, Write};
-use log::info;
 use anyhow::Result;
 
 use crate::file_helper::{open_output_file};

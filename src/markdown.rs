@@ -2,7 +2,7 @@ use anyhow::{Result};
 use regex::Regex;
 use lazy_static::lazy_static;
 use std::path::{Path, PathBuf};
-use log::info;
+use log::{debug, info};
 use regex::Captures;
 use file_helper::process_lines;
 use crate::file_helper;
@@ -52,7 +52,7 @@ fn process_line(line: &str, index: &Index) -> Result<String> {
             let link_addr = PathBuf::from(get_link_value(&found, 2)?);
             let new_link = get_new_link(is_image, link_text, &link_addr, index)?;
             new_line = line.replace(original, new_link.as_str());
-            info!("[{}] {} -> {}", i, original, new_link);
+            debug!("[{}] {} -> {}", i, original, new_link);
         }
     }
     Ok(new_line)
