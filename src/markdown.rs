@@ -81,8 +81,7 @@ pub fn process_markdown(paths: &Paths, index: &Index) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::remove_dir_all;
-    use crate::file_helper::remove_file_if_exists;
+    use std::fs::{remove_dir_all, remove_file};
     use super::*;
 
     #[test]
@@ -148,7 +147,9 @@ mod tests {
         let elem = index.find_by_path(Path::new("DIY Guitar Effects Pedal and Amplifier Kits – Buil b8cb99f4968a402bae2a08b90d9c0123.md")).unwrap();
         println!("{:?}", elem);
         let new_path = Path::new("target/output/link-test.md");
-        remove_file_if_exists(new_path).unwrap();
+        if new_path.exists() {
+            remove_file(new_path).unwrap();
+        }
         let base_dir = dir;
         let paths = Paths::from_elem(elem, base_dir, &output_dir);
         process_markdown(&paths, &index).unwrap();

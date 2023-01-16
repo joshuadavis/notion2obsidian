@@ -3,9 +3,10 @@ use anyhow::{Result};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::slice::Iter;
-use log::{debug};
+use lazy_static::lazy_static;
+use log::{debug, warn};
 use walkdir::WalkDir;
-use crate::path_helper::{component_to_string};
+use crate::path_helper::{component_to_string, get_parent};
 
 
 /// Represents the file extension (file type) for a particular entry.
@@ -84,6 +85,19 @@ fn should_process(path: &Path) -> bool {
     path.is_file() && !as_str(path.file_name()).starts_with(".")
 }
 
+fn relative_path(path: &Path, base_dir: &Path) -> Result<PathBuf> {
+    lazy_static! {
+        static ref DOTDOT: PathBuf = PathBuf::from("..");
+    }
+    let dotdot = DOTDOT.as_path();
+    Ok(if path.starts_with(dotdot) {
+        let path = path.strip_prefix(dotdot)?;
+        get_parent(base_dir)?.join(path)
+    } else {
+        base_dir.join(path)
+    })
+}
+
 impl Index {
     /// Index the given directory.
     pub fn from_dir(dir: &Path) -> Result<Self> {
@@ -118,8 +132,16 @@ impl Index {
                 Some(elem)
             }
             None => {
-                let relative = base_dir.join(path);
-                self.find_by_path(&relative)
+                let relative = relative_path(path, base_dir);
+                match relative {
+                    Ok(relative) => {
+                        self.find_by_path(&relative)
+                    }
+                    Err(e) => {
+                        warn!("Could not find relative path for {} due to {}", path.display(), e);
+                        None
+                    }
+                }
             }
         }
     }
@@ -179,6 +201,16 @@ impl Paths {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_relative_path() {
+        let base_dir = Path::new("/home/josh");
+        let path = Path::new("Downloads");
+        let relative = relative_path(path, base_dir).unwrap();
+        assert_eq!(relative, Path::new("/home/josh/Downloads"));
+        let relative = relative_path(Path::new("../Downloads"), base_dir).unwrap();
+        assert_eq!(relative, Path::new("/home/Downloads"));
+    }
 
     #[test]
     fn test_paths() {

@@ -63,6 +63,7 @@ pub fn copy_file(input_path: &Path, output_path: &Path) -> u64 {
 
 #[cfg(test)]
 mod test {
+    use std::fs::remove_file;
     use super::*;
 
     #[test]
@@ -70,7 +71,9 @@ mod test {
         let input = Path::new("test-data/test.md");
         assert!(input.exists());
         let output = Path::new("target/test-data/test-out.md");
-        remove_file_if_exists(output).unwrap();
+        if output.exists() {
+            remove_file(output).unwrap();
+        }
         assert_eq!(output.exists(), false);
 
         let mut count = 0;
