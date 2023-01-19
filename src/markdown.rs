@@ -211,6 +211,7 @@ mod tests {
         let base_dir = dir;
         let paths = Paths::from_elem(elem, base_dir, &output_dir);
         process_markdown(&paths, &index).unwrap();
+        // TODO: Verify the output.
         cleanup(&output_dir);
     }
 }
