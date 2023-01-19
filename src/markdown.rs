@@ -1,3 +1,5 @@
+use std::fs::{OpenOptions};
+use std::io::{BufWriter, Write};
 use crate::file_helper;
 use crate::index::*;
 use crate::path_helper::{get_file_stem, get_parent, path_to_string};
@@ -61,9 +63,11 @@ fn get_new_link(
     }
 }
 
+/// State - updated while processing lines in the markdown file.
 struct State {
     headers_processed: usize,
     links_processed: usize,
+    tags: Vec<String>
 }
 
 fn process_links(state: &mut State, line: &str, paths: &Paths, index: &Index) -> Result<String> {
@@ -106,7 +110,34 @@ fn process_header(state: &mut State, line: &str, paths: &Paths) -> Result<String
     Ok(String::from(line))
 }
 
+fn prepare_tag(tag: &String) -> String {
+    let mut tag = tag.clone(); // Clone, so we can use mutable methods.
+    tag.retain(|c| { c.is_alphabetic() || c.is_numeric() || c == '_'  });
+    tag.insert(0, '#');
+    tag
+}
+
+fn create_tag_string(tags: &Vec<String>) -> String {
+    tags.iter()
+        .map(prepare_tag)
+        .collect::<Vec<String>>() // Collect into a Vec<String>, so we can join.
+        .join(" ")
+}
+
+fn process_tags(state: &mut State, line: &str) -> Result<()> {
+    lazy_static! {
+        static ref RE_TAGS: Regex = Regex::new("^[Tt]ags: (.+)").unwrap();
+    }
+    if let Some(c) = RE_TAGS.captures(line) {
+        get_capture_value(&c, 1)?.split(",").for_each(|tag| {
+            state.tags.push(String::from(tag.trim()));
+        });
+    }
+    Ok(())
+}
+
 fn process_line(state: &mut State, line: &str, paths: &Paths, index: &Index) -> Result<String> {
+    process_tags(state, line)?;
     let line = process_header(state, line, paths)?;
     process_links(state, &line, paths, index)
 }
@@ -115,12 +146,25 @@ pub fn process_markdown(paths: &Paths, index: &Index) -> Result<()> {
     let mut state = State {
         headers_processed: 0,
         links_processed: 0,
+        tags: vec![]
     };
+
+    let output_path = paths.output_path();
     process_lines(
         paths.input_path().as_path(),
-        paths.output_path().as_path(),
+        &output_path,
         |line| process_line(&mut state, line, paths, index),
     )?;
+
+    // If there are tags to write, append them to the output file.
+    if !state.tags.is_empty() {
+        let file = OpenOptions::new().append(true).open(&output_path)?;
+        let mut writer = BufWriter::new(file);
+        writeln!(writer)?;
+        writeln!(writer, "---")?;
+        writeln!(writer, "Tags: {}", create_tag_string(&state.tags))?;
+        writer.flush()?
+    }
     Ok(())
 }
 
