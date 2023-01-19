@@ -1,8 +1,8 @@
-use std::fs::{create_dir_all, File};
 use anyhow::{Context, Result};
-use std::path::Path;
-use std::io::{BufRead, BufReader, BufWriter, Write};
 use log::{debug, warn};
+use std::fs::{create_dir_all, File};
+use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::path::Path;
 
 pub fn create_parent_if_needed(outpath: &Path) -> Result<()> {
     if let Some(p) = outpath.parent() {
@@ -14,7 +14,7 @@ pub fn create_parent_if_needed(outpath: &Path) -> Result<()> {
 pub fn create_if_needed(p: &Path) -> Result<()> {
     if !p.exists() {
         debug!("Creating directory {}", p.display());
-        create_dir_all(p).with_context(|| { format!("Unable to create directory {}", p.display()) })?;
+        create_dir_all(p).with_context(|| format!("Unable to create directory {}", p.display()))?;
     }
     Ok(())
 }
@@ -29,11 +29,12 @@ pub fn open_output_file(output_path: &Path) -> Result<BufWriter<File>> {
 }
 
 pub fn process_lines<F>(input_path: &Path, output_path: &Path, mut line_processor: F) -> Result<()>
-    where F: FnMut(&str) -> Result<String> {
-
+where
+    F: FnMut(&str) -> Result<String>,
+{
     // Open the input file.
-    let input = File::open(input_path).with_context(
-        || { format!("Could not open {} for input", input_path.display()) })?;
+    let input = File::open(input_path)
+        .with_context(|| format!("Could not open {} for input", input_path.display()))?;
     let reader = BufReader::new(input);
 
     let mut writer = open_output_file(output_path)?;
@@ -50,21 +51,24 @@ pub fn process_lines<F>(input_path: &Path, output_path: &Path, mut line_processo
 /// Copies the file, log a warning if there was a problem.
 pub fn copy_file(input_path: &Path, output_path: &Path) -> u64 {
     let r = std::fs::copy(input_path, output_path);
-    match r
-    {
+    match r {
         Ok(n) => n,
         Err(e) => {
-            warn!("Error copying [{}] to [{}]: {}",
-                input_path.display(), output_path.display(), e);
-            0   // We didn't copy anything.
+            warn!(
+                "Error copying [{}] to [{}]: {}",
+                input_path.display(),
+                output_path.display(),
+                e
+            );
+            0 // We didn't copy anything.
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use std::fs::remove_file;
     use super::*;
+    use std::fs::remove_file;
 
     #[test]
     fn test_process_lines() {

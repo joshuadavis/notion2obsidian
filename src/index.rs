@@ -1,13 +1,12 @@
+use crate::path_helper::{component_to_string, get_parent};
+use anyhow::Result;
+use lazy_static::lazy_static;
+use log::{debug, warn};
 use std::collections::HashMap;
-use anyhow::{Result};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::slice::Iter;
-use lazy_static::lazy_static;
-use log::{debug, warn};
 use walkdir::WalkDir;
-use crate::path_helper::{component_to_string, get_parent};
-
 
 /// Represents the file extension (file type) for a particular entry.
 #[derive(Eq, PartialEq, Debug)]
@@ -26,7 +25,7 @@ impl Ext {
         match as_str(path.extension()).to_lowercase().as_str() {
             "md" => Ext::Markdown,
             "csv" => Ext::Table,
-            _ => Ext::Other
+            _ => Ext::Other,
         }
     }
 }
@@ -109,8 +108,7 @@ impl Index {
             let path = entry.path();
             if should_process(path) {
                 debug!("Processing {}", path.display());
-                let elem_rc = Rc::new(
-                    Element::new(path, dir)?);
+                let elem_rc = Rc::new(Element::new(path, dir)?);
                 // Okay, so now we have the Rc.  Clone it first, to get the reference into the map.
                 by_path.insert(elem_rc.old_path.clone(), elem_rc.clone());
                 by_output_path.insert(elem_rc.new_path.clone(), elem_rc.clone());
@@ -118,7 +116,11 @@ impl Index {
                 elements.push(elem_rc);
             }
         }
-        Ok(Self { elements, by_path, by_output_path })
+        Ok(Self {
+            elements,
+            by_path,
+            by_output_path,
+        })
     }
 
     /// Find a file given it's original path.
@@ -126,19 +128,23 @@ impl Index {
         self.by_path.get(path)
     }
 
-    pub fn find_by_path_or_relative_path(&self, path: &Path, base_dir: &Path) -> Option<&Rc<Element>> {
+    pub fn find_by_path_or_relative_path(
+        &self,
+        path: &Path,
+        base_dir: &Path,
+    ) -> Option<&Rc<Element>> {
         match self.find_by_path(path) {
-            Some(elem) => {
-                Some(elem)
-            }
+            Some(elem) => Some(elem),
             None => {
                 let relative = relative_path(path, base_dir);
                 match relative {
-                    Ok(relative) => {
-                        self.find_by_path(&relative)
-                    }
+                    Ok(relative) => self.find_by_path(&relative),
                     Err(e) => {
-                        warn!("Could not find relative path for {} due to {}", path.display(), e);
+                        warn!(
+                            "Could not find relative path for {} due to {}",
+                            path.display(),
+                            e
+                        );
                         None
                     }
                 }
@@ -236,7 +242,10 @@ mod tests {
 
     #[test]
     fn test_index() {
-        let index = Index::from_dir(Path::new("test-data/My Links 4d87e5fbcac64818adbd9511585bd720")).unwrap();
+        let index = Index::from_dir(Path::new(
+            "test-data/My Links 4d87e5fbcac64818adbd9511585bd720",
+        ))
+        .unwrap();
         assert_eq!(index.len(), 28);
         let elem = index.find_by_path(Path::new("How to Setup a DNS Server for a Home Lab on Ubuntu bfee0474ac0345ab9c6fcce76ac20d63/Untitled Database 240461ceab7040889b2171196ea67c0d.csv"));
         assert!(elem.is_some());

@@ -1,9 +1,9 @@
+use crate::file_helper::create_parent_if_needed;
+use anyhow::anyhow;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
-use zip::ZipArchive;
-use anyhow::anyhow;
 use zip::read::ZipFile;
-use crate::file_helper::create_parent_if_needed;
+use zip::ZipArchive;
 
 fn extract_file(mut file: &mut ZipFile, outpath: &PathBuf) -> anyhow::Result<u64> {
     create_parent_if_needed(outpath)?;
@@ -14,7 +14,7 @@ fn extract_file(mut file: &mut ZipFile, outpath: &PathBuf) -> anyhow::Result<u64
 pub fn extract_zip(input_path: &Path) -> anyhow::Result<PathBuf> {
     let file = fs::File::open(input_path)?;
     let mut archive = ZipArchive::new(file)?;
-    let mut first_dir : Option<PathBuf> = None;
+    let mut first_dir: Option<PathBuf> = None;
     for i in 0..archive.len() {
         let mut zip_file = archive.by_index(i)?;
         let outpath = match zip_file.enclosed_name() {
@@ -23,7 +23,12 @@ pub fn extract_zip(input_path: &Path) -> anyhow::Result<PathBuf> {
         };
 
         if first_dir == None {
-            first_dir = Some(outpath.parent().ok_or(anyhow!("Unable to get parent!"))?.to_path_buf());
+            first_dir = Some(
+                outpath
+                    .parent()
+                    .ok_or(anyhow!("Unable to get parent!"))?
+                    .to_path_buf(),
+            );
         }
 
         if (*zip_file.name()).ends_with('/') {

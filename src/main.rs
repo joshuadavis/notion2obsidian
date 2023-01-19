@@ -1,4 +1,4 @@
-use std::{env};
+use std::env;
 use std::fs::remove_dir_all;
 use std::path::{Path, PathBuf};
 
@@ -9,22 +9,19 @@ use log::{debug, info};
 use crate::file_helper::{create_if_needed, create_parent_if_needed};
 use crate::index::{Ext, Paths};
 
-mod path_helper;
 mod extract_zip;
-mod rex;
-mod markdown;
 mod file_helper;
-mod table;
 mod index;
+mod markdown;
+mod path_helper;
+mod rex;
+mod table;
 
 fn main() -> Result<()> {
-
     // Initialize logging.
     {
         let mut builder = Builder::from_default_env();
-        builder
-            .filter_level(log::LevelFilter::Info)
-            .try_init()?;
+        builder.filter_level(log::LevelFilter::Info).try_init()?;
     }
 
     info!("notion2obsidian starting...");
@@ -76,10 +73,10 @@ fn main() -> Result<()> {
                 // Process markdown.
                 markdown::process_markdown(&paths, &index)?;
             }
-            _ => { // Otherwise, just copy.
+            _ => {
+                // Otherwise, just copy.
                 // Helper function that gives some error context if the copy fails.
-                file_helper::copy_file(paths.input_path().as_path(),
-                                       paths.output_path().as_path());
+                file_helper::copy_file(paths.input_path().as_path(), paths.output_path().as_path());
             }
         }
     }

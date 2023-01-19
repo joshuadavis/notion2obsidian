@@ -1,6 +1,6 @@
 use anyhow::{anyhow, bail, Result};
 use std::ffi::OsStr;
-use std::path::{Path};
+use std::path::Path;
 
 /// Converts the Option into a Result.
 fn osstr_result(osstr: Option<&OsStr>) -> Result<&OsStr> {
@@ -72,9 +72,10 @@ mod tests {
     #[test]
     fn test_component_to_str() {
         let path = Path::new("/tmp/foo/bar");
-        let strs = path.components().map(|c| {
-            component_to_string(&c).unwrap()
-            }).collect::<Vec<String>>();
+        let strs = path
+            .components()
+            .map(|c| component_to_string(&c).unwrap())
+            .collect::<Vec<String>>();
         assert_eq!(strs.len(), 4);
         assert_eq!(strs[1], "tmp");
         assert_eq!(strs[2], "foo");
@@ -99,5 +100,4 @@ mod tests {
         let result = is_zip_file(&path);
         assert!(result.unwrap());
     }
-
 }

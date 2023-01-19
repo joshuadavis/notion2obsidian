@@ -1,14 +1,14 @@
-use anyhow::{Result};
-use regex::Regex;
+use crate::file_helper;
+use crate::index::*;
+use crate::path_helper::{get_file_stem, get_parent, path_to_string};
+use crate::rex::*;
+use anyhow::Result;
+use file_helper::process_lines;
 use lazy_static::lazy_static;
-use std::path::{Path, PathBuf};
 use log::{debug, info};
 use regex::Captures;
-use file_helper::process_lines;
-use crate::file_helper;
-use crate::path_helper::{get_file_stem, get_parent, path_to_string};
-use crate::index::*;
-use crate::rex::*;
+use regex::Regex;
+use std::path::{Path, PathBuf};
 
 fn get_link_value(found: &Captures, i: usize) -> Result<String> {
     let decoded = urlencoding::decode(get_capture_value(found, i)?)?;
@@ -16,10 +16,19 @@ fn get_link_value(found: &Captures, i: usize) -> Result<String> {
 }
 
 fn link_is_external(addr: &str) -> bool {
-    addr.starts_with("http://") || addr.starts_with("https://") || addr.starts_with("about:") || addr.starts_with("mailto:")
+    addr.starts_with("http://")
+        || addr.starts_with("https://")
+        || addr.starts_with("about:")
+        || addr.starts_with("mailto:")
 }
 
-fn get_new_link(is_image: bool, link_text: &str, link_addr: &Path, base_dir: &Path, index: &Index) -> Result<String> {
+fn get_new_link(
+    is_image: bool,
+    link_text: &str,
+    link_addr: &Path,
+    base_dir: &Path,
+    index: &Index,
+) -> Result<String> {
     let link_addr_string = path_to_string(link_addr)?;
     match index.find_by_path_or_relative_path(link_addr, base_dir) {
         Some(elem) => {
@@ -42,7 +51,10 @@ fn get_new_link(is_image: bool, link_text: &str, link_addr: &Path, base_dir: &Pa
                 }
             } else {
                 // Otherwise,this is some kind of non-external link that isn't in the index.
-                info!("Link not found: {}, assuming external link", path_to_string(link_addr)?);
+                info!(
+                    "Link not found: {}, assuming external link",
+                    path_to_string(link_addr)?
+                );
                 Ok(format!("[{}]({})", link_text, path_to_string(link_addr)?))
             }
         }
@@ -56,14 +68,13 @@ struct State {
 
 fn process_links(state: &mut State, line: &str, paths: &Paths, index: &Index) -> Result<String> {
     lazy_static! {
-        static ref RE_LINK: Regex = Regex::new(
-            r"!?\[(.*)\]\((.*)\)")
-        .unwrap();
+        static ref RE_LINK: Regex = Regex::new(r"!?\[(.*)\]\((.*)\)").unwrap();
     }
 
     let mut new_line = String::from(line);
     for (i, found) in RE_LINK.captures_iter(&line).enumerate() {
-        if found.len() == 3 { // The three parts are: 0 = the whole match, 1 = the link text, 2 = the link address.
+        if found.len() == 3 {
+            // The three parts are: 0 = the whole match, 1 = the link text, 2 = the link address.
             let original = get_capture_value(&found, 0)?;
             let is_image = original.starts_with("!");
             let link_text = get_capture_value(&found, 1)?;
@@ -80,9 +91,7 @@ fn process_links(state: &mut State, line: &str, paths: &Paths, index: &Index) ->
 
 fn process_header(state: &mut State, line: &str, paths: &Paths) -> Result<String> {
     lazy_static! {
-    static ref RE_HEADER: Regex = Regex::new(
-        r"^(#+)\s+(.*)")
-        .unwrap();
+        static ref RE_HEADER: Regex = Regex::new(r"^(#+)\s+(.*)").unwrap();
     }
 
     if let Some(c) = RE_HEADER.captures(line) {
@@ -91,7 +100,7 @@ fn process_header(state: &mut State, line: &str, paths: &Paths) -> Result<String
         state.headers_processed += 1;
         if state.headers_processed == 1 && level == 1 && text == get_file_stem(&paths.new_path)? {
             debug!("Deleting redundant header: {}, {}", level, text);
-            return Ok(String::from(""))
+            return Ok(String::from(""));
         }
     }
     Ok(String::from(line))
@@ -107,16 +116,18 @@ pub fn process_markdown(paths: &Paths, index: &Index) -> Result<()> {
         headers_processed: 0,
         links_processed: 0,
     };
-    process_lines(paths.input_path().as_path(),
-                  paths.output_path().as_path(),
-                  |line| process_line(&mut state, line, paths, index))?;
+    process_lines(
+        paths.input_path().as_path(),
+        paths.output_path().as_path(),
+        |line| process_line(&mut state, line, paths, index),
+    )?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use std::fs::{remove_dir_all, remove_file};
     use super::*;
+    use std::fs::{remove_dir_all, remove_file};
 
     #[test]
     fn test_create_path_map() {
@@ -147,16 +158,28 @@ mod tests {
 
     #[test]
     fn test_process_markdown() {
-        let (dir, output_dir, index) = prepare_input("test-data/Documentation c5b82e1ba6e94f87bb3f537f639378b4");
-        let paths = get_paths(dir, &output_dir, &index, "Kotlin ff533adf543444398ee04488cfa17db1.md");
+        let (dir, output_dir, index) =
+            prepare_input("test-data/Documentation c5b82e1ba6e94f87bb3f537f639378b4");
+        let paths = get_paths(
+            dir,
+            &output_dir,
+            &index,
+            "Kotlin ff533adf543444398ee04488cfa17db1.md",
+        );
         process_markdown(&paths, &index).unwrap();
         cleanup(&output_dir);
     }
 
     #[test]
     fn test_get_new_link() {
-        let (dir, output_dir, index) = prepare_input("test-data/Documentation c5b82e1ba6e94f87bb3f537f639378b4");
-        let paths = get_paths(dir, &output_dir, &index, "Kotlin ff533adf543444398ee04488cfa17db1.md");
+        let (dir, output_dir, index) =
+            prepare_input("test-data/Documentation c5b82e1ba6e94f87bb3f537f639378b4");
+        let paths = get_paths(
+            dir,
+            &output_dir,
+            &index,
+            "Kotlin ff533adf543444398ee04488cfa17db1.md",
+        );
         let link_text = "Kotlin";
         let link_addr = Path::new("Kotlin ff533adf543444398ee04488cfa17db1.md");
         let base_dir = get_parent(&paths.old_path).unwrap();
@@ -177,7 +200,8 @@ mod tests {
 
     #[test]
     fn test_image_link() {
-        let (dir, output_dir, index) = prepare_input("test-data/My Links 4d87e5fbcac64818adbd9511585bd720");
+        let (dir, output_dir, index) =
+            prepare_input("test-data/My Links 4d87e5fbcac64818adbd9511585bd720");
         let elem = index.find_by_path(Path::new("DIY Guitar Effects Pedal and Amplifier Kits – Buil b8cb99f4968a402bae2a08b90d9c0123.md")).unwrap();
         println!("{:?}", elem);
         let new_path = Path::new("target/output/link-test.md");

@@ -1,9 +1,9 @@
-use std::fs::File;
-use std::path::{Path, PathBuf};
-use std::io::{BufWriter, Write};
 use anyhow::Result;
+use std::fs::File;
+use std::io::{BufWriter, Write};
+use std::path::{Path, PathBuf};
 
-use crate::file_helper::{open_output_file};
+use crate::file_helper::open_output_file;
 use crate::index;
 use crate::index::Index;
 use crate::path_helper::path_to_string;
@@ -21,9 +21,9 @@ pub fn compute_link_addr(path: &Path, name: &str, index: &Index) -> Option<PathB
     }
 }
 
-fn write_headers(reader : &mut csv::Reader<File>, writer: &mut BufWriter<File>) -> Result<bool> {
+fn write_headers(reader: &mut csv::Reader<File>, writer: &mut BufWriter<File>) -> Result<bool> {
     let headers = reader.headers()?;
-    let mut header_lengths : Vec<usize> = Vec::new();
+    let mut header_lengths: Vec<usize> = Vec::new();
     let mut link_first_column = false;
     for (idx, header) in headers.iter().enumerate() {
         write!(writer, "|{}", header)?;
@@ -42,7 +42,6 @@ fn write_headers(reader : &mut csv::Reader<File>, writer: &mut BufWriter<File>) 
 }
 
 pub fn convert_csv_to_markdown(paths: &index::Paths, index: &Index) -> anyhow::Result<()> {
-
     let input = paths.input_path();
     let output = paths.output_path();
     let new_path = &paths.new_path;
@@ -59,7 +58,7 @@ pub fn convert_csv_to_markdown(paths: &index::Paths, index: &Index) -> anyhow::R
     for row in reader.records() {
         let row = row?;
         for (column, field) in row.iter().enumerate() {
-            if link_first_column &&  column == 0 {
+            if link_first_column && column == 0 {
                 if let Some(link_addr) = compute_link_addr(new_path, field, index) {
                     write!(writer, "|[[{}|{}]]", path_to_string(&link_addr)?, field)?;
                 } else {

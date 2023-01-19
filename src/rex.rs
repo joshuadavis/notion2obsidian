@@ -4,10 +4,8 @@ use regex::Regex;
 
 pub fn replace_hex(s: &str) -> Result<String> {
     lazy_static! {
-        static ref RE_FILENAME: Regex = Regex::new(
-            r"(.*)( +[0-9a-fA-F]+)(\..*)").unwrap();
-        static ref RE_DIR: Regex = Regex::new(
-            r"(.*)( +[0-9a-fA-F]+)").unwrap();
+        static ref RE_FILENAME: Regex = Regex::new(r"(.*)( +[0-9a-fA-F]+)(\..*)").unwrap();
+        static ref RE_DIR: Regex = Regex::new(r"(.*)( +[0-9a-fA-F]+)").unwrap();
     }
     // Replace hex strings in filenames and directory names.
     let rv = if s.contains(".") {
@@ -20,7 +18,10 @@ pub fn replace_hex(s: &str) -> Result<String> {
 }
 
 pub fn get_capture_value<'a>(capture: &'a regex::Captures, i: usize) -> Result<&'a str> {
-    Ok(capture.get(i).ok_or(anyhow!("Invalid  capture {}!", i))?.as_str())
+    Ok(capture
+        .get(i)
+        .ok_or(anyhow!("Invalid  capture {}!", i))?
+        .as_str())
 }
 
 #[cfg(test)]
