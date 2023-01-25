@@ -28,15 +28,18 @@ Unzips the notion export file, if the input argument ends in '.zip'
 ## Transform CSV Files Into Tables
 
 * Notion exports "database" pages as CSV files.   These are translated into markdown files with a markdown table in them.
-* Detect "link tables" and link the names to the corresponding notes.
+* Detect "link tables" and link the names to the corresponding notes (markdown link format is used).
+* Empty cells are translated to a single space, so the table will be interpreted correctly.
+* One empty line added after the last row, to ensure that the table is interpreted correctly.
 
 ## Other Transformations
 
 * Remove first heading if it's the same as the page name.
+* Translate `Tags: foo, bar, baz` into Obsidian tags, at the end of the page.
 
 ## Work in Progress
 
-* Translate `Tags: foo, bar, baz` into Obsidian tags.
+... TBD
 
 # Installation
 
