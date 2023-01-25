@@ -1,12 +1,12 @@
 use anyhow::Result;
-use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, Read, Write};
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 use crate::file_helper::open_output_file;
 use crate::index;
 use crate::index::Index;
-use crate::path_helper::path_to_string;
+use crate::path_helper::{path_to_str};
 
 pub fn compute_link_addr(path: &Path, name: &str, index: &Index) -> Option<PathBuf> {
     let mut path = path.to_path_buf();
@@ -21,7 +21,7 @@ pub fn compute_link_addr(path: &Path, name: &str, index: &Index) -> Option<PathB
     }
 }
 
-fn write_headers(reader: &mut csv::Reader<File>, writer: &mut BufWriter<File>) -> Result<bool> {
+fn write_headers<T: Write, U: Read>(reader: &mut csv::Reader<U>, writer: &mut BufWriter<T>) -> Result<bool> {
     let headers = reader.headers()?;
     let mut header_lengths: Vec<usize> = Vec::new();
     let mut link_first_column = false;
@@ -41,14 +41,28 @@ fn write_headers(reader: &mut csv::Reader<File>, writer: &mut BufWriter<File>) -
     Ok(link_first_column)
 }
 
-pub fn convert_csv_to_markdown(paths: &index::Paths, index: &Index) -> anyhow::Result<()> {
+fn write_link<T: Write>(writer: &mut BufWriter<T>, field: &str, link_addr: &Path) -> Result<()> {
+    // We can't use the "wikilink" Obsidian format here, as the vertical bar will
+    // mess up the table.
+    let addr = urlencoding::encode(path_to_str(&link_addr)? );
+    let f = format!("[{}]({})", field, addr.deref());
+    write_field(writer, &f)
+}
+
+fn write_field<T: Write>(writer: &mut BufWriter<T>, field: &str) -> Result<()> {
+    let field = if field.is_empty() { " " } else { field };
+    write!(writer, "|{}", field)?;
+    Ok(())
+}
+
+pub fn convert_csv_to_markdown(paths: &index::Paths, index: &Index) -> Result<()> {
     let input = paths.input_path();
     let output = paths.output_path();
     let new_path = &paths.new_path;
 
     let mut reader = csv::Reader::from_path(&input)?;
     let mut writer = open_output_file(&output)?;
-    let mut link_first_column = false;
+    let mut link_first_column = false;  // True if the first column should be interpreted as a link.
 
     // First, write the headers.
     if reader.has_headers() {
@@ -60,22 +74,25 @@ pub fn convert_csv_to_markdown(paths: &index::Paths, index: &Index) -> anyhow::R
         for (column, field) in row.iter().enumerate() {
             if link_first_column && column == 0 {
                 if let Some(link_addr) = compute_link_addr(new_path, field, index) {
-                    write!(writer, "|[[{}|{}]]", path_to_string(&link_addr)?, field)?;
+                    write_link(&mut writer, field, &link_addr)?;
                 } else {
-                    write!(writer, "|{}", field)?;
+                    write_field(&mut writer, field)?;
                 }
             } else {
-                write!(writer, "|{}", field)?;
+                write_field(&mut writer, field)?;
             }
         }
         writeln!(writer, "|")?;
     }
 
+    writeln!(writer, "")?;
+    writeln!(writer, "")?;
     writeln!(writer, "----")?;
     writeln!(writer, "#notion2obsidian #csvimport")?;
     writer.flush()?;
     Ok(())
 }
+
 
 #[cfg(test)]
 mod test {

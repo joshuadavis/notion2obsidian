@@ -21,9 +21,9 @@ pub fn osstr_to_string(osstr: Option<&OsStr>) -> Result<String> {
     Ok(String::from(osstr_to_str(osstr_result(osstr)?)?))
 }
 
-/// Convert a Path to a String as a Result (so you can use ?)
-pub fn path_to_string(path: &Path) -> Result<String> {
-    Ok(String::from(path.to_str().ok_or(anyhow!("Invalid Path!"))?))
+/// Converts a path to a string slice as a Result.
+pub fn path_to_str(path: &Path) -> Result<&str> {
+    path.to_str().ok_or(anyhow!("Invalid Path!"))
 }
 
 /// Convert a path component into a String Result.
@@ -56,9 +56,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_path_to_string() {
+    fn test_path_to_str() {
         let path = Path::new("/tmp/foo/bar");
-        let s = path_to_string(path).unwrap();
+        let s = path_to_str(path).unwrap();
         assert_eq!(s, "/tmp/foo/bar");
     }
 

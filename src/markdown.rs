@@ -2,7 +2,7 @@ use std::fs::{OpenOptions};
 use std::io::{BufWriter, Write};
 use crate::file_helper;
 use crate::index::*;
-use crate::path_helper::{get_file_stem, get_parent, path_to_string};
+use crate::path_helper::{get_file_stem, get_parent, path_to_str};
 use crate::rex::*;
 use anyhow::Result;
 use file_helper::process_lines;
@@ -31,10 +31,10 @@ fn get_new_link(
     base_dir: &Path,
     index: &Index,
 ) -> Result<String> {
-    let link_addr_string = path_to_string(link_addr)?;
+    let link_addr_string = path_to_str(link_addr)?;
     match index.find_by_path_or_relative_path(link_addr, base_dir) {
         Some(elem) => {
-            let new_path = path_to_string(elem.new_path.as_path())?;
+            let new_path = path_to_str(elem.new_path.as_path())?;
             // If we found the address in the map, then use that with the 'internal link' syntax.
             if is_image {
                 Ok(format!("![[{}]]", new_path))
@@ -43,11 +43,11 @@ fn get_new_link(
             }
         }
         None => {
-            if link_is_external(link_addr_string.as_str()) {
+            if link_is_external(link_addr_string) {
                 // If the link is external, then use the 'external link' syntax.
                 // If there is no link text, then just use the link address.
                 if link_text.is_empty() {
-                    Ok(link_addr_string)
+                    Ok(String::from(link_addr_string))
                 } else {
                     Ok(format!("[{}]({})", link_text, link_addr_string))
                 }
@@ -55,9 +55,9 @@ fn get_new_link(
                 // Otherwise,this is some kind of non-external link that isn't in the index.
                 info!(
                     "Link not found: {}, assuming external link",
-                    path_to_string(link_addr)?
+                    path_to_str(link_addr)?
                 );
-                Ok(format!("[{}]({})", link_text, path_to_string(link_addr)?))
+                Ok(format!("[{}]({})", link_text, path_to_str(link_addr)?))
             }
         }
     }
