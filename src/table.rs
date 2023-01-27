@@ -1,6 +1,5 @@
 use anyhow::Result;
 use std::io::{BufWriter, Read, Write};
-use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 use crate::file_helper::open_output_file;
@@ -42,10 +41,10 @@ fn write_headers<T: Write, U: Read>(reader: &mut csv::Reader<U>, writer: &mut Bu
 }
 
 fn write_link<T: Write>(writer: &mut BufWriter<T>, field: &str, link_addr: &Path) -> Result<()> {
-    // We can't use the "wikilink" Obsidian format here, as the vertical bar will
-    // mess up the table.
-    let addr = urlencoding::encode(path_to_str(&link_addr)? );
-    let f = format!("[{}]({})", field, addr.deref());
+    // We can't use the full "wikilink" Obsidian format here, as the vertical bar will
+    // mess up the table.  Just use a wikilink with the new path.
+    let addr = path_to_str(&link_addr)?;
+    let f = format!("[[{}]]", addr);
     write_field(writer, &f)
 }
 
@@ -62,17 +61,17 @@ pub fn convert_csv_to_markdown(paths: &index::Paths, index: &Index) -> Result<()
 
     let mut reader = csv::Reader::from_path(&input)?;
     let mut writer = open_output_file(&output)?;
-    let mut link_first_column = false;  // True if the first column should be interpreted as a link.
+    let mut is_link_table = false;  // True if the first column should be interpreted as a link.
 
     // First, write the headers.
     if reader.has_headers() {
-        link_first_column = write_headers(&mut reader, &mut writer)?;
+        is_link_table = write_headers(&mut reader, &mut writer)?;
     }
 
     for row in reader.records() {
         let row = row?;
         for (column, field) in row.iter().enumerate() {
-            if link_first_column && column == 0 {
+            if is_link_table && column == 0 {
                 if let Some(link_addr) = compute_link_addr(new_path, field, index) {
                     write_link(&mut writer, field, &link_addr)?;
                 } else {
