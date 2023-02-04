@@ -13,3 +13,6 @@ Cargo.lock
 Export-*.zip
 Export-*/
 output/
+
+# Other nonsense
+.DS_Store

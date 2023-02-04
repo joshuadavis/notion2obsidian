@@ -29,6 +29,8 @@ Unzips the notion export file, if the input argument ends in '.zip'
 
 * Notion exports "database" pages as CSV files.   These are translated into markdown files with a markdown table in them.
 * Detect "link tables" and link the names to the corresponding notes (markdown link format is used).
+  * The first column header is "Name" - The rows will be looked up as if they were internal links.  If there is a document, the value will be turned into a link.'
+  * If there is a column called "Files" - Similar linking will occur: If the value matches the name of a file, it will be turned into a link to that file.
 * Empty cells are translated to a single space, so the table will be interpreted correctly.
 * One empty line added after the last row, to ensure that the table is interpreted correctly.
 
