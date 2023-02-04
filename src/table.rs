@@ -1,67 +1,105 @@
 use anyhow::Result;
+use log::{debug, info};
 use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
-use log::info;
 
 use crate::file_helper::open_output_file;
 use crate::index;
 use crate::index::Index;
-use crate::path_helper::{path_to_str};
+use crate::path_helper::{get_file_stem, is_markdown_file, link_is_external, path_to_str};
 
-pub fn compute_link_addr(path: &Path, name: &str, index: &Index) -> Option<PathBuf> {
+/// Given the path to the CSV file and the "name" - compute the path to the markdown file that
+/// it should point to.
+fn get_name_link_path(path: &Path, name: &str) -> PathBuf {
     let mut path = path.to_path_buf();
     path.set_extension("");
     path.push(name);
     path.set_extension("md");
-    let maybe_elem = index.find_by_output_path(&path);
-    if let Some(elem) = maybe_elem {
-        Some(elem.new_path.clone())
-    } else {
-        None
-    }
+    path
 }
 
-fn write_headers<T: Write, U: Read>(reader: &mut csv::Reader<U>, writer: &mut BufWriter<T>) -> Result<Vec<String>> {
+fn write_headers<T: Write, U: Read>(
+    reader: &mut csv::Reader<U>,
+    writer: &mut BufWriter<T>,
+) -> Result<Vec<String>> {
     let headers = reader.headers()?;
     let mut header_lengths: Vec<usize> = Vec::new();
     let mut header_strings: Vec<String> = Vec::new();
 
-    for (idx, header) in headers.iter().enumerate() {
-        write!(writer, "|{}", header)?;
+    for (_, header) in headers.iter().enumerate() {
+        write!(writer, "|{header}")?;
         header_lengths.push(header.len());
         header_strings.push(String::from(header))
     }
 
     writeln!(writer, "|")?;
     for header_length in header_lengths {
-        write!(writer, "|{}", "-".repeat(header_length))?;
+        write!(writer, "| {} ", "-".repeat(header_length))?;
     }
     writeln!(writer, "|")?;
-    Ok(link_first_column)
-}
-
-fn write_link<T: Write>(writer: &mut BufWriter<T>, link_addr: &Path) -> Result<()> {
-    // We can't use the full "wikilink" Obsidian format here, as the vertical bar will
-    // mess up the table.  Just use a wikilink with the new path.
-    let addr = path_to_str(&link_addr)?;
-    let f = format!("[[{}]]", addr);
-    write_field(writer, &f)
+    Ok(header_strings)
 }
 
 fn write_field<T: Write>(writer: &mut BufWriter<T>, field: &str) -> Result<()> {
     let field = if field.is_empty() { " " } else { field };
-    write!(writer, "| {}", field)?;
+    write!(writer, "| {field}")?;
     Ok(())
 }
 
-fn write_files<T: Write>(writer: &mut BufWriter<T>, field: &str,index: &Index) -> Result<()> {
+/// The cell value is a comma-separated list of files.  We need to turn these into links if possible.
+fn write_files<T: Write>(writer: &mut BufWriter<T>, field: &str, index: &Index) -> Result<()> {
+    if field.is_empty() {
+        // If the field has nothing in it, then pass through.
+        write_field(writer, " ")?;
+        return Ok(());
+    }
+
+    debug!("Writing file links for: {field}");
     // Parse the field - it should be a comma-separated list.
     write!(writer, "| ")?;
-    for f in field.split(",").map(|x| { x.trim() }) {
-        // TODO: Look up the file in the index and write it as a link if we find it.
+    for f in field.split(",").map(|x| x.trim()) {
+        // For external links, just pass them through.
+        if link_is_external(f) {
+            write!(writer, "{f}")?;
+            continue;
+        }
+        // Decode the file name, turn it into a path.
+        let f = urlencoding::decode(f)?.to_string();
+        let path = Path::new(&f);
+        if let Some(elem) = index.find_by_path(path) {
+            write!(writer, " [[{}]]", path_to_str(&elem.new_path)?)?;
+        } else {
+            info!("File not found: {f}");
+            // Otherwise, just print it out.
+            write!(writer, "{f}")?;
+        }
+    }
+    Ok(())
+}
 
-        // Otherwise, just print it out.
-        write!(writer, "{}", f)?;
+fn write_name_link<T: Write>(
+    writer: &mut BufWriter<T>,
+    field: &str,
+    new_path: &Path,
+    index: &Index,
+) -> Result<()> {
+    // Compute the potential link destination based on the path of the CSV file and the
+    // value found in the "Name" column.
+    let path = get_name_link_path(new_path, field);
+    if let Some(elem) = index.find_by_output_path(&path) {
+        // If a markdown file was found, then write the link.
+        let link_addr = elem.new_path.as_path();
+        let addr = if is_markdown_file(link_addr)? {
+            get_file_stem(link_addr)?
+        } else {
+            String::from(path_to_str(link_addr)?)
+        };
+        let f = format!("[[{addr}]]");
+        write_field(writer, &f)?;
+    } else {
+        // The name link wasn't found, so just write it out as a string.
+        info!("Link not found: {field}");
+        write_field(writer, field)?;
     }
     Ok(())
 }
@@ -69,7 +107,7 @@ fn write_files<T: Write>(writer: &mut BufWriter<T>, field: &str,index: &Index) -
 pub fn convert_csv_to_markdown(paths: &index::Paths, index: &Index) -> Result<()> {
     let input = paths.input_path();
     let output = paths.output_path();
-    let new_path = &paths.new_path;
+    let new_path = paths.new_path.as_path();
 
     let mut reader = csv::Reader::from_path(&input)?;
     let mut writer = open_output_file(&output)?;
@@ -80,17 +118,13 @@ pub fn convert_csv_to_markdown(paths: &index::Paths, index: &Index) -> Result<()
     for row in reader.records() {
         let row = row?;
         // Iterate through the cells of the row, with the header of each cell.
-        for cell_with_header in row.iter().enumerate().zip( // Join the 'column/cell' pair with...
-            headers.iter().map(|h| { h.as_str() })  // Turn the headers into slices.
+        for cell_with_header in row.iter().enumerate().zip(
+            // Join the 'column/cell' pair with...
+            headers.iter().map(|h| h.as_str()), // Turn the headers into slices.
         ) {
             let ((column, field), header) = cell_with_header;
             if column == 0 && header == "Name" {
-                if let Some(link_addr) = compute_link_addr(new_path, field, index) {
-                    write_link(&mut writer, &link_addr)?;
-                } else {
-                    info!("Link not found: {}", field);
-                    write_field(&mut writer, field)?;
-                }
+                write_name_link(&mut writer, field, new_path, index)?;
             } else if header == "Files" {
                 write_files(&mut writer, field, index)?;
             } else {
@@ -100,17 +134,32 @@ pub fn convert_csv_to_markdown(paths: &index::Paths, index: &Index) -> Result<()
         writeln!(writer, "|")?;
     }
 
-    writeln!(writer, "")?;
-    writeln!(writer, "")?;
+    writeln!(writer)?;
+    writeln!(writer)?;
     writeln!(writer, "----")?;
     writeln!(writer, "#notion2obsidian #csvimport")?;
     writer.flush()?;
     Ok(())
 }
 
-
 #[cfg(test)]
 mod test {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn test_name_link_path() {
+        let new_path = Path::new("Appliances.csv");
+
+        // CSV files can have links to markdown documents in the *folder* with the same name.
+
+        // If the CSV "Appliances.csv" has a Name column value of "Refrigerator", then the
+        // document should be "Appliances/Refrigerator.md".
+
+        let result = get_name_link_path(new_path, "Refrigerator");
+        assert_eq!(result, Path::new("Appliances/Refrigerator.md"));
+    }
+
     #[test]
     fn test_convert_csv_to_markdown() {
         assert!(true);
