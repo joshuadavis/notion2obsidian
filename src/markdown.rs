@@ -1,4 +1,5 @@
 use crate::index::*;
+use crate::links::{fmt_md_link, fmt_wiki_link};
 use crate::path_helper::{get_file_stem, get_parent, path_to_str};
 use crate::rex::*;
 use crate::{file_helper, path_helper};
@@ -6,6 +7,7 @@ use anyhow::Result;
 use file_helper::process_lines;
 use lazy_static::lazy_static;
 use log::{debug, info};
+use path_helper::link_is_external;
 use regex::Captures;
 use regex::Regex;
 use std::fs::OpenOptions;
@@ -30,27 +32,23 @@ fn get_new_link(
             let new_path = path_to_str(elem.new_path.as_path())?;
             // If we found the address in the map, then use that with the 'internal link' syntax.
             if is_image {
-                Ok(format!("![[{}]]", new_path))
+                Ok(format!("![[{new_path}]]"))
             } else {
-                Ok(format!("[[{}|{}]]", new_path, link_text))
+                Ok(fmt_wiki_link(new_path, Some(link_text)))
             }
         }
         None => {
-            if path_helper::link_is_external(link_addr_string) {
-                // If the link is external, then use the 'external link' syntax.
+            if link_is_external(link_addr_string) {
+                // If the link is external, then use the markdown syntax.
                 // If there is no link text, then just use the link address.
-                if link_text.is_empty() {
-                    Ok(String::from(link_addr_string))
-                } else {
-                    Ok(format!("[{}]({})", link_text, link_addr_string))
-                }
+                Ok(fmt_md_link(link_addr_string, Some(link_text)))
             } else {
                 // Otherwise,this is some kind of non-external link that isn't in the index.
                 info!(
                     "Link not found: {}, assuming external link",
                     path_to_str(link_addr)?
                 );
-                Ok(format!("[{}]({})", link_text, path_to_str(link_addr)?))
+                Ok(fmt_md_link(path_to_str(link_addr)?, Some(link_text)))
             }
         }
     }
@@ -238,7 +236,7 @@ mod tests {
         let (dir, output_dir, index) =
             prepare_input("test-data/My Links 4d87e5fbcac64818adbd9511585bd720");
         let elem = index.find_by_path(Path::new("DIY Guitar Effects Pedal and Amplifier Kits – Buil b8cb99f4968a402bae2a08b90d9c0123.md")).unwrap();
-        println!("{:?}", elem);
+        println!("{elem:?}");
         let new_path = Path::new("target/output/link-test.md");
         if new_path.exists() {
             remove_file(new_path).unwrap();

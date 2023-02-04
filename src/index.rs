@@ -81,7 +81,7 @@ pub struct Index {
 
 /// Determines which input paths should be indexed/processed.
 fn should_process(path: &Path) -> bool {
-    path.is_file() && !as_str(path.file_name()).starts_with(".")
+    path.is_file() && !as_str(path.file_name()).starts_with('.')
 }
 
 fn relative_path(path: &Path, base_dir: &Path) -> Result<PathBuf> {

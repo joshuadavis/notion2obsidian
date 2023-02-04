@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use crate::file_helper::open_output_file;
 use crate::index;
 use crate::index::Index;
+use crate::links::fmt_wiki_link;
 use crate::path_helper::{get_file_stem, is_markdown_file, link_is_external, path_to_str};
 
 /// Given the path to the CSV file and the "name" - compute the path to the markdown file that
@@ -42,7 +43,7 @@ fn write_headers<T: Write, U: Read>(
 
 fn write_field<T: Write>(writer: &mut BufWriter<T>, field: &str) -> Result<()> {
     let field = if field.is_empty() { " " } else { field };
-    write!(writer, "| {field}")?;
+    write!(writer, "| {field} ")?;
     Ok(())
 }
 
@@ -50,7 +51,7 @@ fn write_field<T: Write>(writer: &mut BufWriter<T>, field: &str) -> Result<()> {
 fn write_files<T: Write>(writer: &mut BufWriter<T>, field: &str, index: &Index) -> Result<()> {
     if field.is_empty() {
         // If the field has nothing in it, then pass through.
-        write_field(writer, " ")?;
+        write_field(writer, "")?;
         return Ok(());
     }
 
@@ -60,18 +61,19 @@ fn write_files<T: Write>(writer: &mut BufWriter<T>, field: &str, index: &Index) 
     for f in field.split(",").map(|x| x.trim()) {
         // For external links, just pass them through.
         if link_is_external(f) {
-            write!(writer, "{f}")?;
+            writer.write_all(f.as_bytes())?;
             continue;
         }
         // Decode the file name, turn it into a path.
         let f = urlencoding::decode(f)?.to_string();
         let path = Path::new(&f);
         if let Some(elem) = index.find_by_path(path) {
-            write!(writer, " [[{}]]", path_to_str(&elem.new_path)?)?;
+            let link = fmt_wiki_link(path_to_str(&elem.new_path)?, None);
+            writer.write_all(link.as_bytes())?;
         } else {
             info!("File not found: {f}");
             // Otherwise, just print it out.
-            write!(writer, "{f}")?;
+            writer.write_all(f.as_bytes())?;
         }
     }
     Ok(())
@@ -94,7 +96,7 @@ fn write_name_link<T: Write>(
         } else {
             String::from(path_to_str(link_addr)?)
         };
-        let f = format!("[[{addr}]]");
+        let f = fmt_wiki_link(&addr, None);
         write_field(writer, &f)?;
     } else {
         // The name link wasn't found, so just write it out as a string.
@@ -158,10 +160,5 @@ mod test {
 
         let result = get_name_link_path(new_path, "Refrigerator");
         assert_eq!(result, Path::new("Appliances/Refrigerator.md"));
-    }
-
-    #[test]
-    fn test_convert_csv_to_markdown() {
-        assert!(true);
     }
 }

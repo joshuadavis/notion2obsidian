@@ -16,6 +16,7 @@ mod markdown;
 mod path_helper;
 mod rex;
 mod table;
+mod links;
 
 fn main() -> Result<()> {
     // Initialize logging.
