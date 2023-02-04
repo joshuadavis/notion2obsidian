@@ -4,11 +4,7 @@ use std::path::Path;
 
 /// Converts the Option into a Result.
 fn osstr_result(osstr: Option<&OsStr>) -> Result<&OsStr> {
-    if osstr.is_none() {
-        bail!("No OsStr?")
-    } else {
-        Ok(osstr.unwrap())
-    }
+    osstr.ok_or(anyhow!("OsStr was None!"))
 }
 
 /// Converts an OsStr to a &str (slice) yielding a Result (so you can use ?)
@@ -46,14 +42,36 @@ pub fn is_zip_file(input_path: &Path) -> Result<bool> {
     Ok(get_extension(input_path)?.to_lowercase() == "zip")
 }
 
+// Returns Ok(true) if the file is a markdown file.
+pub fn is_markdown_file(input_path: &Path) -> Result<bool> {
+    Ok(get_extension(input_path)?.to_lowercase() == "md")
+}
+
 /// Gets the parent, as a Result so you can use ?.
 pub fn get_parent(path: &Path) -> Result<&Path> {
     path.parent().ok_or(anyhow!("No parent!"))
 }
 
+/// Returns true if the links is "external" (e.g. a web link).
+pub fn link_is_external(addr: &str) -> bool {
+    addr.starts_with("http://")
+        || addr.starts_with("https://")
+        || addr.starts_with("about:")
+        || addr.starts_with("mailto:")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_link_is_external() {
+        assert!(link_is_external("http://www.google.com"));
+        assert!(link_is_external("https://www.google.com"));
+        assert!(link_is_external("about:blank"));
+        assert!(link_is_external("mailto:foo@bar.co"));
+        assert!(!link_is_external("foo/bar.md"));
+    }
 
     #[test]
     fn test_path_to_str() {
@@ -97,7 +115,16 @@ mod tests {
     #[test]
     fn test_is_zip_file() {
         let path = Path::new("test.zip");
-        let result = is_zip_file(&path);
-        assert!(result.unwrap());
+        assert!(is_zip_file(path).unwrap());
+        let path = Path::new("test.txt");
+        assert!(!is_zip_file(path).unwrap());
+    }
+
+    #[test]
+    fn test_is_markdown_file() {
+        let path = Path::new("test.md");
+        assert!(is_markdown_file(path).unwrap());
+        let path = Path::new("test.txt");
+        assert!(!is_markdown_file(path).unwrap());
     }
 }

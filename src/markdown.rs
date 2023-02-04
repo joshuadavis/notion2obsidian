@@ -1,27 +1,20 @@
-use std::fs::{OpenOptions};
-use std::io::{BufWriter, Write};
-use crate::file_helper;
 use crate::index::*;
 use crate::path_helper::{get_file_stem, get_parent, path_to_str};
 use crate::rex::*;
+use crate::{file_helper, path_helper};
 use anyhow::Result;
 use file_helper::process_lines;
 use lazy_static::lazy_static;
 use log::{debug, info};
 use regex::Captures;
 use regex::Regex;
+use std::fs::OpenOptions;
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 fn get_link_value(found: &Captures, i: usize) -> Result<String> {
     let decoded = urlencoding::decode(get_capture_value(found, i)?)?;
     Ok(String::from(decoded.as_ref()))
-}
-
-fn link_is_external(addr: &str) -> bool {
-    addr.starts_with("http://")
-        || addr.starts_with("https://")
-        || addr.starts_with("about:")
-        || addr.starts_with("mailto:")
 }
 
 fn get_new_link(
@@ -43,7 +36,7 @@ fn get_new_link(
             }
         }
         None => {
-            if link_is_external(link_addr_string) {
+            if path_helper::link_is_external(link_addr_string) {
                 // If the link is external, then use the 'external link' syntax.
                 // If there is no link text, then just use the link address.
                 if link_text.is_empty() {
@@ -67,7 +60,7 @@ fn get_new_link(
 struct State {
     headers_processed: usize,
     links_processed: usize,
-    tags: Vec<String>
+    tags: Vec<String>,
 }
 
 fn process_links(state: &mut State, line: &str, paths: &Paths, index: &Index) -> Result<String> {
@@ -112,7 +105,7 @@ fn process_header(state: &mut State, line: &str, paths: &Paths) -> Result<String
 
 fn prepare_tag(tag: &String) -> String {
     let mut tag = tag.clone(); // Clone, so we can use mutable methods.
-    tag.retain(|c| { c.is_alphabetic() || c.is_numeric() || c == '_'  });
+    tag.retain(|c| c.is_alphabetic() || c.is_numeric() || c == '_');
     tag.insert(0, '#');
     tag
 }
@@ -146,15 +139,13 @@ pub fn process_markdown(paths: &Paths, index: &Index) -> Result<()> {
     let mut state = State {
         headers_processed: 0,
         links_processed: 0,
-        tags: vec![]
+        tags: vec![],
     };
 
     let output_path = paths.output_path();
-    process_lines(
-        paths.input_path().as_path(),
-        &output_path,
-        |line| process_line(&mut state, line, paths, index),
-    )?;
+    process_lines(paths.input_path().as_path(), &output_path, |line| {
+        process_line(&mut state, line, paths, index)
+    })?;
 
     // If there are tags to write, append them to the output file.
     if !state.tags.is_empty() {

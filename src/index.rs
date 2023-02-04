@@ -100,6 +100,7 @@ fn relative_path(path: &Path, base_dir: &Path) -> Result<PathBuf> {
 impl Index {
     /// Index the given directory.
     pub fn from_dir(dir: &Path) -> Result<Self> {
+        // First, create mutable collections that we can fill in.
         let mut elements: Vec<Rc<Element>> = Vec::new();
         let mut by_path: HashMap<PathBuf, Rc<Element>> = HashMap::new();
         let mut by_output_path: HashMap<PathBuf, Rc<Element>> = HashMap::new();
@@ -107,7 +108,7 @@ impl Index {
             let entry = entry?; // unwrap the Result, hang on to it as a local var to give it a lifetime.
             let path = entry.path();
             if should_process(path) {
-                debug!("Processing {}", path.display());
+                debug!("Adding {} ...", path.display());
                 let elem_rc = Rc::new(Element::new(path, dir)?);
                 // Okay, so now we have the Rc.  Clone it first, to get the reference into the map.
                 by_path.insert(elem_rc.old_path.clone(), elem_rc.clone());
@@ -116,6 +117,7 @@ impl Index {
                 elements.push(elem_rc);
             }
         }
+        // Now that we have all the collections, create the struct.
         Ok(Self {
             elements,
             by_path,
@@ -123,7 +125,7 @@ impl Index {
         })
     }
 
-    /// Find a file given it's original path.
+    /// Find a file given it's original path (with the UUIDs in it)
     pub fn find_by_path(&self, path: &Path) -> Option<&Rc<Element>> {
         self.by_path.get(path)
     }
