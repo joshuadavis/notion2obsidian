@@ -1,6 +1,6 @@
 use crate::index::*;
-use crate::links::{fmt_md_link, fmt_wiki_link};
-use crate::path_helper::{get_file_stem, get_parent, path_to_str};
+use crate::links::{empty_is_none, fmt_md_link, fmt_wiki_link};
+use crate::path_helper::{get_file_stem, get_parent, path_slash, path_to_str};
 use crate::rex::*;
 use crate::{file_helper, path_helper};
 use anyhow::Result;
@@ -29,26 +29,29 @@ fn get_new_link(
     let link_addr_string = path_to_str(link_addr)?;
     match index.find_by_path_or_relative_path(link_addr, base_dir) {
         Some(elem) => {
-            let new_path = path_to_str(elem.new_path.as_path())?;
+            let new_path = path_slash(elem.new_path.as_path())?;
             // If we found the address in the map, then use that with the 'internal link' syntax.
             if is_image {
                 Ok(format!("![[{new_path}]]"))
             } else {
-                Ok(fmt_wiki_link(new_path, Some(link_text)))
+                Ok(fmt_wiki_link(&new_path, empty_is_none(link_text)))
             }
         }
         None => {
             if link_is_external(link_addr_string) {
                 // If the link is external, then use the markdown syntax.
                 // If there is no link text, then just use the link address.
-                Ok(fmt_md_link(link_addr_string, Some(link_text)))
+                Ok(fmt_md_link(link_addr_string, empty_is_none(link_text)))
             } else {
                 // Otherwise,this is some kind of non-external link that isn't in the index.
                 info!(
                     "Link not found: {}, assuming external link",
                     path_to_str(link_addr)?
                 );
-                Ok(fmt_md_link(path_to_str(link_addr)?, Some(link_text)))
+                Ok(fmt_md_link(
+                    path_to_str(link_addr)?,
+                    empty_is_none(link_text),
+                ))
             }
         }
     }

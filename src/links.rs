@@ -1,3 +1,12 @@
+/// Turns an empty string into None, and a non-empty string into Some(s).
+pub fn empty_is_none(s: &str) -> Option<&str> {
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
+    }
+}
+
 /// Format a wiki link, with optional link text.
 pub fn fmt_wiki_link(dest: &str, text: Option<&str>) -> String {
     if let Some(text) = text {
@@ -19,6 +28,12 @@ pub fn fmt_md_link(dest: &str, text: Option<&str>) -> String {
 mod tests {
     #[allow(unused_imports)]
     use super::*;
+
+    #[test]
+    fn test_empty_is_none() {
+        assert_eq!(empty_is_none(""), None);
+        assert_eq!(empty_is_none("foo"), Some("foo"));
+    }
 
     #[test]
     fn test_wiki_link() {

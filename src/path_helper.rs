@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use std::ffi::OsStr;
-use std::path::Path;
+use std::path::{Component, Path};
 
 /// Converts the Option into a Result.
 fn osstr_result(osstr: Option<&OsStr>) -> Result<&OsStr> {
@@ -60,9 +60,46 @@ pub fn link_is_external(addr: &str) -> bool {
         || addr.starts_with("mailto:")
 }
 
+/// Returns the component as a &str, or an error - but it always uses forward slashes, even on
+/// Windows.
+fn component_slash<'a>(c: &'a Component) -> Result<&'a str> {
+    match c {
+        Component::Normal(s) => osstr_to_str(s),
+        Component::Prefix(p) => osstr_to_str(p.as_os_str()),
+        Component::RootDir => Ok("/"),
+        Component::CurDir => Ok("."),
+        Component::ParentDir => Ok(".."),
+    }
+}
+
+/// Converts a path to a string, but always uses forward slashes, even on Windows.
+/// Obsidian only uses Unix style paths, so this is necessary.
+pub fn path_slash(path: &Path) -> Result<String> {
+    let mut strbuf = String::new();
+    let last = path.components().count() - 1;
+    for (i, c) in path.components().enumerate() {
+        strbuf.push_str(component_slash(&c)?);
+        if i < last {
+            strbuf.push('/');
+        }
+    }
+    Ok(strbuf)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_to_slash() {
+        if cfg!(windows) {
+            let path = Path::new(r"foo\bar"); // Not sure if this works on Mac/Linux
+            assert_eq!(path_slash(path).unwrap(), "foo/bar");
+        } else {
+            let path = Path::new("foo/bar");
+            assert_eq!(path_slash(path).unwrap(), "foo/bar");
+        }
+    }
 
     #[test]
     fn test_link_is_external() {

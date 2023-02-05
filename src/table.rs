@@ -6,8 +6,10 @@ use std::path::{Path, PathBuf};
 use crate::file_helper::open_output_file;
 use crate::index;
 use crate::index::Index;
-use crate::links::fmt_wiki_link;
-use crate::path_helper::{get_file_stem, is_markdown_file, link_is_external, path_to_str};
+use crate::links::{empty_is_none, fmt_wiki_link};
+use crate::path_helper::{
+    get_file_stem, is_markdown_file, link_is_external, path_slash, path_to_str,
+};
 
 /// Given the path to the CSV file and the "name" - compute the path to the markdown file that
 /// it should point to.
@@ -68,7 +70,8 @@ fn write_files<T: Write>(writer: &mut BufWriter<T>, field: &str, index: &Index) 
         let f = urlencoding::decode(f)?.to_string();
         let path = Path::new(&f);
         if let Some(elem) = index.find_by_path(path) {
-            let link = fmt_wiki_link(path_to_str(&elem.new_path)?, None);
+            let slash = path_slash(&elem.new_path)?;
+            let link = fmt_wiki_link(&slash, None);
             writer.write_all(link.as_bytes())?;
         } else {
             info!("File not found: {f}");
@@ -91,12 +94,9 @@ fn write_name_link<T: Write>(
     if let Some(elem) = index.find_by_output_path(&path) {
         // If a markdown file was found, then write the link.
         let link_addr = elem.new_path.as_path();
-        let addr = if is_markdown_file(link_addr)? {
-            get_file_stem(link_addr)?
-        } else {
-            String::from(path_to_str(link_addr)?)
-        };
-        let f = fmt_wiki_link(&addr, None);
+        let addr = path_slash(link_addr)?;
+        let text = get_file_stem(link_addr)?;
+        let f = fmt_wiki_link(&addr, empty_is_none(&text));
         write_field(writer, &f)?;
     } else {
         // The name link wasn't found, so just write it out as a string.
