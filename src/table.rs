@@ -96,7 +96,7 @@ fn write_name_link<T: Write>(
         let link_addr = elem.new_path.as_path();
         let addr = path_slash(link_addr)?;
         let text = get_file_stem(link_addr)?;
-        let f = fmt_wiki_link(&addr, empty_is_none(&text));
+        let f = fmt_wiki_link(&addr, None); // Don't use wiki link with vertical bar - no text.
         write_field(writer, &f)?;
     } else {
         // The name link wasn't found, so just write it out as a string.
